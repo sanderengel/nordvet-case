@@ -1,0 +1,7 @@
+# Top-level dependencies, pinned (versions checked against PyPI on 6 Nov 2026).
+# Transitive dependencies are not pinned yet; run `pip freeze > requirements.lock`
+# after the final install if a full lock is wanted.
+mssql-python==1.17.0
+requests==2.34.2
+python-dotenv==1.2.4
+pytest==9.2.0

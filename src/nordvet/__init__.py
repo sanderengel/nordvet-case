@@ -1,0 +1,1 @@
+"""Nordvet no-show pipeline."""
