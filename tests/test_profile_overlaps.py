@@ -53,3 +53,14 @@ def test_expected_pairs_weights_by_duration_and_sums_to_total():
     exp = expected_pairs(Counter({"short": 2, "long": 2}), {"short": 10, "long": 30}, total_pairs=100)
     assert abs(sum(exp.values()) - 100) < 1e-9
     assert exp[("long", "long")] > exp[("short", "short")]
+
+
+def test_observed_vs_expected_adjusts_for_strata():
+    from nordvet.explore.profile_overlaps import observed_vs_expected
+
+    # Stratum "x" always 1, stratum "y" always 0. Bucket 2 is all "x", so its high mean is fully expected.
+    records = [("x", 2, 1), ("x", 2, 1), ("y", 1, 0), ("y", 1, 0), ("x", 1, 1)]
+    result = observed_vs_expected(records)
+    assert result[2] == (2, 1.0, 1.0)
+    n, observed, expected = result[1]
+    assert n == 3 and abs(observed - 1 / 3) < 1e-9 and abs(expected - 1 / 3) < 1e-9

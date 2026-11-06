@@ -5,7 +5,7 @@
     python -m nordvet.explore.profile_overlaps --runs 50 --seed 1
 
 Reads the raw pages that `explore_full pull` saved (same loader as profile_raw) and
-prints five checks, also saved as overlap_report.txt inside the folder:
+prints six checks, also saved as overlap_report.txt inside the folder:
 
 1. Concurrency: how many appointments one vet has at the same time ("n-booking").
 2. Free or taken: at the moment a booking is made, does it land on time the vet
@@ -16,6 +16,8 @@ prints five checks, also saved as overlap_report.txt inside the folder:
    vet's load explains? Baseline: shuffle which vet each appointment belongs to
    within each clinic and day.
 5. Refills: is a cancelled appointment's time booked again more often than chance?
+6. Outcomes by n: do no-shows, cancellations after the start or late completion vary
+   with n once clinic and service are accounted for? (Traces real overbooking could leave.)
 
 Scope: soft-deleted rows are excluded (D-015). An appointment occupies
 [scheduled_at, scheduled_at + duration_minutes). "Live" means not cancelled, or
@@ -146,6 +148,27 @@ def expected_pairs(count: Counter, duration: dict[str, int], total_pairs: int) -
             weight[(x, y)] = w * (duration[x] + duration[y])
     total = sum(weight.values())
     return {k: total_pairs * w / total for k, w in weight.items()}
+
+
+def observed_vs_expected(records) -> dict:
+    """records: iterable of (stratum, bucket, value). Per bucket: (count, observed mean, expected mean).
+
+    Expected averages each record's stratum mean, so it adjusts for how the strata
+    (here clinic and service) are mixed in each bucket.
+    """
+    records = list(records)
+    s_sum, s_n = Counter(), Counter()
+    for stratum, _, value in records:
+        s_sum[stratum] += value
+        s_n[stratum] += 1
+    mean = {k: s_sum[k] / s_n[k] for k in s_n}
+    agg: dict = defaultdict(lambda: [0, 0.0, 0.0])
+    for stratum, bucket, value in records:
+        a = agg[bucket]
+        a[0] += 1
+        a[1] += value
+        a[2] += mean[stratum]
+    return {b: (n, total / n, exp / n) for b, (n, total, exp) in agg.items()}
 
 
 # ----------------------------------------------------------------- the checks
@@ -304,6 +327,54 @@ def check_refills(rows: list[dict], now: datetime, out: Report) -> None:
     out("   than this cancellation's notice. Refilled close to chance = cancelling does not free anything.")
 
 
+def check_outcomes(rows: list[dict], live: list[dict], out: Report) -> None:
+    by_vet = defaultdict(list)
+    for r in live:
+        by_vet[r["vet_id"]].append(r)
+    peak: dict[str, int] = {}
+    for g in by_vet.values():
+        peak.update(peak_concurrency(g))
+    after_start = [r for r in rows if r["status"] == "cancelled" and r["_x"] is not None and r["_x"] >= r["_s"]]
+    for r in after_start:  # n for a cancelled row: itself plus the live appointments around it
+        group = [o for o in by_vet[r["vet_id"]] if o["_s"] < r["_e"] and r["_s"] < o["_e"]] + [r]
+        peak[r["id"]] = peak_concurrency(group)[r["id"]]
+    labels = {1: "1", 2: "2", 3: "3", 4: "4+"}
+
+    def bucket(r):
+        return min(peak[r["id"]], 4)
+
+    def stratum(r):
+        return (r["clinic_id"], r["service"])
+
+    def table(title, result, fmt):
+        out(f"   {title}")
+        out(f"     {'n':>3} {'appts':>7} {'observed':>9} {'expected':>9}")
+        for b in sorted(result):
+            n, observed, expected = result[b]
+            out(f"     {labels[b]:>3} {n:>7} {fmt(observed):>9} {fmt(expected):>9}")
+
+    def pct(x):
+        return f"{100 * x:.2f}%"
+
+    done = [r for r in live if r["status"] in ("completed", "no_show")]
+    table("No-show rate (of completed + no_show):",
+          observed_vs_expected((stratum(r), bucket(r), r["status"] == "no_show") for r in done), pct)
+    ids = {r["id"] for r in after_start}
+    table("Cancelled after the start (of completed + no_show + cancelled after the start):",
+          observed_vs_expected((stratum(r), bucket(r), r["id"] in ids) for r in done + after_start), pct)
+    completed = [r for r in live if r["status"] == "completed"]
+    lag = {r["id"]: (parse_z(r["updated_at"]) - r["_e"]).total_seconds() / 60 for r in completed}
+    table("Minutes from scheduled end to updated_at on completed rows (mean):",
+          observed_vs_expected((stratum(r), bucket(r), lag[r["id"]]) for r in completed), lambda x: f"{x:.0f}")
+    medians = defaultdict(list)
+    for r in completed:
+        medians[bucket(r)].append(lag[r["id"]])
+    out("     median minutes by n: " + ", ".join(f"{labels[b]}: {st.median(v):.0f}" for b, v in sorted(medians.items())))
+    out("   Expected = each appointment's clinic-and-service mean, averaged (adjusts for clinic and service mix).")
+    out("   Limits (D-019): no-shows cannot reveal overbooking, since clients cannot know in advance; updated_at looks")
+    out("   like when staff record the outcome, so the lag barely measures delays.")
+
+
 # ----------------------------------------------------------------- main
 
 
@@ -328,6 +399,8 @@ def run(folder: Path, runs: int, seed: int, out: Report) -> None:
     check_concentration(live, runs, rng, out)
     out("\n5. Is a cancelled appointment's time booked again more often than chance? (ended before the snapshot)")
     check_refills(rows, now, out)
+    out("\n6. Do outcomes vary with n once clinic and service are accounted for?")
+    check_outcomes(rows, live, out)
 
 
 def main(argv: list[str] | None = None) -> int:
