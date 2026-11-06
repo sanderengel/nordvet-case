@@ -66,6 +66,42 @@ def lead_bucket(hours: float) -> str:
 BUCKET_ORDER = ["after the start", "under 2 h before", "2-24 h before", "1-7 days before", "7+ days before"]
 
 
+LEAD_EDGES = [0, 1, 2, 4, 8, 24, 48, 72, 96, 120, 168, 240, 336, 504, 744]
+
+
+def lead_density(leads: list[float], edges: list[float]) -> list[tuple[float, float, float, float]]:
+    """Booking lead times (hours) per bucket: (from, to, share of all, share per hour of lead)."""
+    total = len(leads)
+    out = []
+    for lo, hi in zip(edges, edges[1:]):
+        n = sum(1 for h in leads if lo <= h < hi)
+        out.append((lo, hi, n / total, n / total / (hi - lo)))
+    return out
+
+
+def service_mix(rows: list[dict]) -> tuple[dict, dict]:
+    """No-show rate per service, and per clinic the observed rate against the rate its own service mix predicts.
+
+    Uses completed and no_show rows. Returns ({service: (appointments, rate)},
+    {clinic: (appointments, observed, expected)}).
+    """
+    done = [r for r in rows if r["status"] in ("completed", "no_show")]
+    n_s, ns_s = Counter(), Counter()
+    for r in done:
+        n_s[r["service"]] += 1
+        ns_s[r["service"]] += r["status"] == "no_show"
+    rate = {s: ns_s[s] / n_s[s] for s in n_s}
+    n_c, ns_c, exp_c = Counter(), Counter(), Counter()
+    for r in done:
+        c = r["clinic_id"]
+        n_c[c] += 1
+        ns_c[c] += r["status"] == "no_show"
+        exp_c[c] += rate[r["service"]]
+    by_service = {s: (n_s[s], rate[s]) for s in n_s}
+    by_clinic = {c: (n_c[c], ns_c[c] / n_c[c], exp_c[c] / n_c[c]) for c in n_c}
+    return by_service, by_clinic
+
+
 def parse_z(ts: str) -> datetime:
     return datetime.strptime(ts[:19], "%Y-%m-%dT%H:%M:%S")
 
@@ -219,9 +255,10 @@ def profile(folder: Path, today, out: Report) -> dict:
     out(f"   deleted before the appointment's start: {before_start}; of those, status completed or no_show: "
         f"{sum(1 for r in extras.values() if parse_z(r['deleted_at']) < parse_sched(r['scheduled_at'])[2] and r['status'] in ('completed', 'no_show'))}")
 
-    out("\n6. No-shows per clinic (rows before today; DEFINITION STILL OPEN)")
+    out("\n6. No-shows per clinic (rows before today; a no-show is status no_show, D-018)")
     out("   strict    = no_show / (completed + no_show)")
-    out("   sensitivity = also counts 'cancelled' rows cancelled less than 2 h before the start or after it")
+    out("   late_c / sens. = also counting cancellations under 2 h before the start or after it; only a check")
+    out("   that the ranking holds, not part of the measure (D-018)")
     per = defaultdict(lambda: Counter())
     for r in past:
         c = per[r["clinic_id"]]
@@ -276,6 +313,21 @@ def profile(folder: Path, today, out: Report) -> dict:
     for cid in inactive:
         sub = [r["scheduled_at"] for r in rows if r["clinic_id"] == cid]
         out(f"   inactive clinic {cid}: {len(sub)} rows, {min(sub) if sub else '-'} .. {max(sub) if sub else '-'}")
+    out("\n8. No-shows by service, and per clinic against the rate its service mix predicts (rows before today)")
+    by_service, by_clinic = service_mix(past)
+    out("   by service: " + ", ".join(
+        f"{s} {r:.1%} ({n})" for s, (n, r) in sorted(by_service.items(), key=lambda kv: -kv[1][1])))
+    out(f"   {'clinic':<8}{'name':<24}{'appts':>7}{'observed':>10}{'expected':>10}")
+    for cid, (n, obs, exp) in sorted(by_clinic.items(), key=lambda kv: -kv[1][1]):
+        out(f"   {cid:<8}{clinics.get(cid, {}).get('name', '?')[:22]:<24}{n:>7}{obs:>10.1%}{exp:>10.1%}")
+    out("   expected = the clinic's own service mix times each service's overall rate; a large gap is not a mix effect")
+
+    out("\n9. Booking lead time (scheduled start minus created_at; rows before today, all statuses)")
+    leads = sorted((parse_sched(r["scheduled_at"])[2] - parse_z(r["created_at"])).total_seconds() / 3600 for r in past)
+    out(f"   {len(leads)} appointments; median {leads[len(leads) // 2] / 24:.1f} days; longest {leads[-1] / 24:.1f} days")
+    out(f"   {'lead':>12} {'share':>7} {'per hour of lead':>17}")
+    for lo, hi, share, per_hour in lead_density(leads, LEAD_EDGES):
+        out(f"   {f'{lo:g}-{hi:g} h':>12} {share:>7.1%} {per_hour:>16.3%}")
     return {"normal": normal, "deleted_variant": deleted_variant, "summary": summary, "windows": windows}
 
 
