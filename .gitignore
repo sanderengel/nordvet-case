@@ -1,0 +1,60 @@
+# ---------------------------------------------------------------
+# Secrets: the real .env lives outside the repo (see decision D-012),
+# but these rules are a second line of defence.
+# ---------------------------------------------------------------
+.env
+.env.*
+!.env.template
+*.pem
+*.key
+*.pfx
+secrets/
+credentials*.json
+
+# ---------------------------------------------------------------
+# Data: the brief asks for no data dumps. Raw API landings, exports,
+# local database files and backups stay out of the repo.
+# ---------------------------------------------------------------
+data/
+exports/
+*.parquet
+*.bak
+*.mdf
+*.ldf
+*.ndf
+
+# Logs
+logs/
+*.log
+
+# ---------------------------------------------------------------
+# Python
+# ---------------------------------------------------------------
+venv/
+.venv/
+env/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.ipynb_checkpoints/
+
+# ---------------------------------------------------------------
+# Editors, OS and agent tooling
+# ---------------------------------------------------------------
+.vscode/
+.idea/
+.DS_Store
+*.swp
+*~
+.claude/
+
+# Throwaway scratch space
+scratch/
+tmp/
