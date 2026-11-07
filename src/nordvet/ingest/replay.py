@@ -81,6 +81,18 @@ def read_appointment_pages(pull_dir: Path, start: str = DEFAULT_START, max_pages
     return pages
 
 
+def pull_started_at(pages: list[Page]) -> datetime:
+    """When the saved pull began: the earliest server Date among its appointment pages.
+
+    Used as raw.run.started_at of the replay (D-035): the model is "as of" the latest run start,
+    so a replay must carry the time of the pull it replays. Without it the run took the date of
+    the one saved clinics response (6 Nov 16:57 UTC) whatever pull was replayed (F1, Phase 4).
+    """
+    if not pages:
+        raise ValueError("a pull needs at least one page")
+    return min(p.server_date for p in pages)
+
+
 def find_clinics_page(raw_dir: Path) -> Page:
     """The newest saved /v1/clinics response in data/raw."""
     best: tuple[str, dict, Path] | None = None
@@ -199,9 +211,11 @@ def run_replay(pull_dir: Path, raw_dir: Path, start: str, reset: bool, max_pages
         create_tables(conn)
 
         t = time.perf_counter()
-        run_id = write_run(conn, f"saved pull {pull_dir.name} (replay)", all_pages)
+        started_at = pull_started_at(pages)
+        run_id = write_run(conn, f"saved pull {pull_dir.name} (replay)", all_pages, started_at=started_at)
         insert_s = time.perf_counter() - t
-        print(f"raw: run {run_id}, {len(all_pages)} pages inserted in {insert_s:.1f}s (one transaction)")
+        print(f"raw: run {run_id}, {len(all_pages)} pages inserted in {insert_s:.1f}s (one transaction), "
+              f"run start {started_at:%Y-%m-%d %H:%M:%S} UTC (the pull's first page)")
 
         t = time.perf_counter()
         build_staging(conn)

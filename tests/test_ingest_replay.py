@@ -10,6 +10,7 @@ from nordvet.ingest.replay import (
     expected_clinics,
     find_clinics_page,
     norm_utc,
+    pull_started_at,
     read_appointment_pages,
     split_scheduled,
 )
@@ -120,3 +121,12 @@ def test_expected_clinics_keeps_non_ascii_names():
         "timezone": "Europe/Copenhagen", "active": True, "opened_on": "2020-09-01"}]}, ensure_ascii=False), 0)
     assert expected_clinics(page)["CL-965"] == (
         "CL-965", "Nordvet København Ø", "København Ø", "DK", "Europe/Copenhagen", 1, "2020-09-01")
+
+
+def test_a_replay_starts_at_the_pulls_earliest_page_not_at_the_clinics_response():
+    # F1 (Phase 4): the run start must be the replayed pull's own time (D-035).
+    def page(when):
+        return Page("appointments", {}, 1, when, when, '{"data": []}')
+    pages = [page(datetime(2026, 11, 6, 23, 27, 5)), page(datetime(2026, 11, 6, 23, 27, 3)),
+             page(datetime(2026, 11, 6, 23, 29, 40))]
+    assert pull_started_at(pages) == datetime(2026, 11, 6, 23, 27, 3)
