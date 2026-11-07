@@ -1,4 +1,4 @@
--- Rebuild staging.clinic from the latest clinics response in raw (39 rows; full refresh, Q16).
+-- Rebuild staging.clinic from the latest clinics response in raw (39 rows; a full refresh, no history).
 
 TRUNCATE TABLE staging.clinic;
 GO

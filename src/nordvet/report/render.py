@@ -1,36 +1,36 @@
-"""The no-show report for the Head of Operations (Phase 5, D-047 to D-054).
+"""The no-show report for the Head of Operations.
 
     python -m nordvet.report.render [--out reports/no-shows.html] [-v]
 
-Reads marts.report_clinic_day and marts.report_all_clinics_day (D-047) and writes one
-self-contained HTML file: one table for one day (D-050), with one row per clinic that day (every
-open clinic, and a closed clinic on the days it had appointments, D-055) under a pinned "All
-row "All" (D-056). The page opens on "yesterday" (the as-of date minus
+Reads marts.report_clinic_day and marts.report_all_clinics_day from the database (not the
+Parquet export, which is for Power BI) and writes one self-contained HTML file: one table for
+one day, with one row per clinic that day (every open clinic, and a closed clinic on the days it
+had appointments) under a pinned "All" row. The page opens on "yesterday" (the as-of date minus
 one day) or, when that day had no appointments (a Sunday), on the latest day before it that had
-some (D-052). A dropdown shows any earlier day; every day's rows are embedded in the page, so
+some. A dropdown shows any earlier day; every day's rows are embedded in the page, so
 the file needs no server and no other files.
 
 Every number on the page comes from the view. Python only sorts, formats and lays out:
-  - clinic names are shown without the "Nordvet " every name starts with (Sander, Phase 5);
+  - clinic names are shown without the "Nordvet " every name starts with;
   - rows are embedded in the default order: the day's no-show rate, highest first, rows without
-    a rate last; ties by the number missed (no-shows + not yet recorded), then by clinic name
-    (D-050). On the page any column can be sorted; the script sorts a copy of the rows in this
+    a rate last; ties by the number missed (no-shows + not yet recorded), then by clinic name.
+    On the page any column can be sorted; the script sorts a copy of the rows in this
     order with a stable sort, so ties in any column fall back to the default order, and rows
     without a rate stay last in both directions. The page shows the first 15 rows of whatever
     order is chosen, with a button to show every clinic. The "All" row stays on top and is never
     sorted or counted in the 15;
-  - a rate is followed by "assumed" while the day still has appointments not yet recorded (D-051);
+  - a rate is followed by "assumed" while the day still has appointments not yet recorded;
   - the 30-day column covers the 30 days before the day shown, not the day itself, so it is a
     normal to compare the day against. It is headed "Previous N days", N being the days of data
     its window covers: 30, or fewer near the first day with any appointment (the view's days_30d,
     the same for every row of a day); "No earlier days" on that first day;
-  - the 30-day rate carries no mark (D-053): on the latest days it holds a few not-yet-recorded
+  - the 30-day rate carries no mark: on the latest days it holds a few not-yet-recorded
     appointments among several hundred, and the note under the table says it is counted the same way.
 
 Build first (python -m nordvet.model.build). The file is written to a temporary name and then
 renamed, so a failed run leaves the previous report in place.
 
-Exit codes (D-033): 0 ok, 1 configuration problem, 2 the report failed.
+Exit codes: 0 ok, 1 configuration problem, 2 the report failed.
 """
 
 from __future__ import annotations
@@ -175,7 +175,7 @@ def format_rate(rate: Decimal | None) -> str:
 
 
 def sort_rows(rows: list[Row]) -> list[Row]:
-    """Highest rate first; no rate last; ties by number missed, then clinic name (D-050)."""
+    """Highest rate first; no rate last; ties by number missed, then clinic name."""
     return sorted(rows, key=lambda r: (r.no_show_rate is None, -(r.no_show_rate or 0), -r.missed, r.clinic_name))
 
 
@@ -183,7 +183,7 @@ def as_of(rows: list[Row]) -> tuple[date, datetime]:
     """The one as-of date and local time of the report.
 
     Every clinic is as of the same run, and Danish and Swedish clinics share one local date and
-    time (D-042). A clinic in another time zone could have a different one; the page cannot show
+    time. A clinic in another time zone could have a different one; the page cannot show
     one "yesterday" for both, so the report fails and says so rather than mixing days.
     """
     if not rows:

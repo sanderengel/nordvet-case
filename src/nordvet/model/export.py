@@ -1,10 +1,10 @@
-"""Export the marts as Parquet files (Phase 4, D-041, D-045, D-046).
+"""Export the marts as Parquet files, for Power BI.
 
     python -m nordvet.model.export [--out exports] [-v]
 
-Writes one file per view to exports/<view>.parquet, overwriting the previous export (D-046):
+Writes one file per view to exports/<view>.parquet, overwriting the previous export:
 the star schema (fact_appointment, dim_clinic, dim_date, dim_service), the clinic-day view the
-report reads (clinic_day), and as_of, which says what the data is as of (D-045). Build first
+report reads (clinic_day), and as_of, which says what the data is as of. Build first
 (python -m nordvet.model.build); the export only reads the views.
 
 Column types come from the views' SQL types (INFORMATION_SCHEMA), not from the values, so a
@@ -16,7 +16,7 @@ an offset: a Parquet column holds one time zone, and Danish and Swedish rows can
 Every file is first written to a temporary name and only renamed once all of them are written,
 so a failed export leaves the previous files in place.
 
-Exit codes (D-033): 0 ok, 1 configuration (also: pyarrow not installed), 2 the export failed.
+Exit codes: 0 ok, 1 configuration (also: pyarrow not installed), 2 the export failed.
 """
 
 from __future__ import annotations

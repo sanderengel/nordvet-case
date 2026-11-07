@@ -1,20 +1,20 @@
--- Raw layer (D-027): API responses exactly as received, append-only.
+-- Raw layer: API responses exactly as received, append-only.
 -- Nothing in raw is parsed, merged, updated or deleted. Re-runnable: creates only what is missing.
 
 IF SCHEMA_ID(N'raw') IS NULL EXEC (N'CREATE SCHEMA raw');
 GO
 
--- One row per successful run. A failed run writes nothing (D-024), so there is no outcome column.
+-- One row per successful run. A failed run writes nothing, so there is no outcome column.
 -- The watermark for the next run is derived from here: the latest started_at minus 10 minutes.
 IF OBJECT_ID(N'raw.run', N'U') IS NULL
 CREATE TABLE raw.run (
     run_id           INT IDENTITY(1, 1) NOT NULL CONSTRAINT pk_raw_run PRIMARY KEY,
-    started_at       DATETIME2(0)  NOT NULL,  -- server's Date header on the run's first response, UTC (D-024)
+    started_at       DATETIME2(0)  NOT NULL,  -- server's Date header on the run's first response, UTC
     finished_at      DATETIME2(0)  NOT NULL,  -- when the last response was received, UTC
     loaded_at        DATETIME2(0)  NOT NULL CONSTRAINT df_raw_run_loaded DEFAULT SYSUTCDATETIME(),
     pages            INT           NOT NULL,
     appointment_rows INT           NOT NULL,  -- rows received, repeats included
-    source           NVARCHAR(200) NOT NULL   -- 'api', or the saved pull the pages were replayed from
+    source           NVARCHAR(200) NOT NULL   -- 'api' for loader runs; only these set the watermark
 );
 GO
 

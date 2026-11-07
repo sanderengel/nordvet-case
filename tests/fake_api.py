@@ -1,5 +1,5 @@
-"""A small fake of the VetOne API, for the loader tests (D-028). It has the behaviours the
-loader depends on, as found in Phase 2:
+"""A small fake of the VetOne API, for the loader tests. It has the behaviours the
+loader depends on, as found by testing the real API:
 
   * appointments sorted by (scheduled_at, id); `from`/`to` inclusive local dates;
     `updated_since` inclusive; soft-deleted rows only with include_deleted=true;

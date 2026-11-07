@@ -1,4 +1,4 @@
--- Rebuild staging.appointment from raw (D-027): one typed row per id, the latest version.
+-- Rebuild staging.appointment from raw: one typed row per id, the latest version.
 -- Latest = highest updated_at; ties go to the page stored later. The four stamps are fixed-width
 -- ISO strings, so comparing them as text is the same as comparing them as times.
 -- scheduled_at arrives without seconds ('2026-10-01T08:00+02:00'); ':00' is added so the

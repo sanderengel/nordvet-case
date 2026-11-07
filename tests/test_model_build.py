@@ -35,7 +35,7 @@ def test_every_view_file_defines_one_view_and_uses_only_views_defined_before_it(
 
 
 def test_the_marts_carry_neither_vet_id_nor_patient_ref():
-    # D-019 / D-036: no vet-level metrics; D-027: patient_ref stays in raw.
+    # No vet-level metrics (vets are double-booked), and patient_ref stays in raw.
     for path in mart_files():
         sql = code(path).lower()
         assert "vet_id" not in sql and "patient_ref" not in sql, path

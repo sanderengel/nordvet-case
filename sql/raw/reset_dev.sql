@@ -1,5 +1,5 @@
--- DEV ONLY: drops the raw and staging tables so a load can be timed from empty.
--- Not part of the pipeline; run only through `--reset` of a dev tool.
+-- TEST ONLY: drops the raw and staging tables. The database tests run it against nordvet_test
+-- to start from empty. Not part of the pipeline.
 
 DROP TABLE IF EXISTS staging.appointment;
 DROP TABLE IF EXISTS staging.clinic;

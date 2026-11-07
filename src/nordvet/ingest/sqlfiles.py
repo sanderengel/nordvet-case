@@ -1,4 +1,4 @@
-"""Reading and running the .sql files under sql/ (D-026).
+"""Reading and running the .sql files under sql/.
 
 Files are split into batches on lines that hold only GO (the way sqlcmd does), because
 CREATE SCHEMA and similar statements must be alone in their batch. GO is not T-SQL: the

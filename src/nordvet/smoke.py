@@ -1,7 +1,8 @@
 """Smoke tests: is everything reachable? Prints status only, never secret values.
 
-Phase 1 scope: configuration, API reachability (including cold start), and the
-database. Authenticating against the API is Phase 2, once the docs are read.
+Checks the configuration, that the API answers (GET /docs, which needs no login; the first call
+can be slow after the API has been idle) and the database (created if missing). A quick check
+before the first load; it does not log in to the API.
 """
 
 from __future__ import annotations

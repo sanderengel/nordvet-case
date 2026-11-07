@@ -1,4 +1,4 @@
--- Date dimension (D-040): every calendar date from 2026-08-01 (the first month with data, D-025)
+-- Date dimension: every calendar date from 2026-08-01 (the first month with data)
 -- to the last appointment date in staging. Weekday numbers follow ISO (1 = Monday) and do not
 -- depend on the server's DATEFIRST or language settings (1900-01-01 was a Monday).
 -- The number generator covers 10,000 days (about 27 years).

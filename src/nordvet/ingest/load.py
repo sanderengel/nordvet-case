@@ -1,8 +1,8 @@
-"""The load run (Phase 3.2, step 2c).
+"""The load run: from the API into raw, then staging.
 
     python -m nordvet.ingest.load [--full] [-v]
 
-One run, in this order (D-024, D-027, D-029):
+One run, in this order:
   1. wait for the database, make sure the tables exist;
   2. find the start of the last API run in raw.run; no such run, or --full, means a full load;
   3. fetch every page from the API into memory (nothing is written yet);
@@ -13,7 +13,7 @@ If anything fails before step 4 ends, the database is as it was, so the next run
 same rows again. If step 5 fails, raw and the run record are already in; staging is rebuilt from
 all of raw, so the next run repairs it.
 
-Exit codes (D-033): 0 ok, 1 configuration problem, 2 the run failed.
+Exit codes: 0 ok, 1 configuration problem, 2 the run failed.
 """
 
 from __future__ import annotations
@@ -36,7 +36,7 @@ from nordvet.ingest.staging import build_staging
 
 log = logging.getLogger("nordvet.load")
 
-API_SOURCE = "api"  # raw.run.source of runs that came from the API (D-032)
+API_SOURCE = "api"  # raw.run.source of runs that came from the API; only these set the watermark
 EXIT_OK, EXIT_CONFIG, EXIT_FAILED = 0, 1, 2
 
 
@@ -105,7 +105,10 @@ def _changes(conn) -> list[tuple]:
 
 
 def _log_changes(changes: list[tuple]) -> None:
-    """Report new rows, status changes (booked to no_show is the D-021 pattern) and new soft deletions."""
+    """Report new rows, status changes and new soft deletions.
+
+    booked to no_show is the usual late change: clinics record no-shows a day or more later.
+    """
     parts = []
     for kind, from_status, to_status, n in sorted(changes, key=lambda c: (c[0], str(c[1]), str(c[2]))):
         if not n:

@@ -1,11 +1,12 @@
--- The report's "All" row (Phase 5, D-056): one row per past day, summed over every clinic.
+-- The report's "All" row: one row per past day, summed over every clinic.
 --
 -- The day's counts are the sum of the clinic rows in marts.report_clinic_day for that day: a
 -- clinic left out of that view (closed, no appointments that day) only has zeros. The build check
 -- 'report_total_differs_from_rows' holds the two together.
--- no_show_rate and no_show_rate_30d follow the same rule as the clinic rows (D-021, D-053), on the
+-- no_show_rate and no_show_rate_30d follow the same rule as the clinic rows, on the
 -- summed counts; the 30 days are the days before the day itself, as in the clinic rows. They count
--- every clinic's appointments in those days, including a clinic that closed within them. The window counts rows, which are days: marts.clinic_day has every date
+-- every clinic's appointments in those days, including a clinic that closed within them. The
+-- window counts rows, which are days: marts.clinic_day has every date
 -- of marts.dim_date, so the grouped rows below have one row per past date. days_30d is the number
 -- of days of data the window covers, computed as in the clinic rows.
 

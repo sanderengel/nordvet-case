@@ -1,1 +1,1 @@
-"""api layer (filled in later phases)."""
+"""api layer: the VetOne API client."""

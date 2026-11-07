@@ -1,4 +1,4 @@
--- "As of" per clinic (D-035, D-042): the start of the latest run in raw.run (highest started_at,
+-- "As of" per clinic: the start of the latest run in raw.run (highest started_at,
 -- any source), converted to the clinic's own local time. as_of_date is the clinic's "today":
 -- booked appointments before it are assumed no-shows, booked ones on or after it are pending.
 -- A clinic whose zone is not in marts.clinic_timezone has no row here (and so no fact rows);

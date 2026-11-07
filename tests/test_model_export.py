@@ -25,7 +25,7 @@ ROWS = [
 ]
 
 
-def test_the_export_covers_the_star_schema_plus_clinic_day_and_as_of():  # D-045
+def test_the_export_covers_the_star_schema_plus_clinic_day_and_as_of():
     assert set(VIEWS) == {"fact_appointment", "dim_clinic", "dim_date", "dim_service", "clinic_day", "as_of"}
 
 

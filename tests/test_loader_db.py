@@ -1,4 +1,6 @@
-"""The three acceptance tests of D-028: the loader against the fake API and a real SQL Server.
+"""The loader's acceptance tests, against the fake API and a real SQL Server: a second run with no
+change leaves staging identical, a row written during a run arrives with the next run, and a failed
+run leaves nothing behind.
 
 They run in a separate database, nordvet_test, which the tests create and clear themselves;
 the real nordvet database is never touched. If the env file or SQL Server is not there (no

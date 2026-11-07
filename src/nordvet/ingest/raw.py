@@ -1,4 +1,4 @@
-"""Writing API responses to the raw layer (D-024, D-027).
+"""Writing API responses to the raw layer, append-only.
 
 A run's pages and its run record are inserted in ONE transaction: either all of it
 is there, or none of it. Nothing is parsed here; the body is stored as received.
@@ -37,7 +37,7 @@ def create_tables(conn) -> None:
 def write_run(conn, source: str, pages: list[Page], started_at: datetime | None = None) -> int:
     """Insert one run record and all its pages in one transaction. Returns the run id.
 
-    started_at is the server time of the run's first request (D-024). It defaults to the first
+    started_at is the server time of the run's first request. It defaults to the first
     page's server date; the loader passes it explicitly, because a restarted page sequence can
     drop that first page while the run's start must not move.
     """

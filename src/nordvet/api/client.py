@@ -1,6 +1,6 @@
-"""VetOne API client (Phase 3.2, step 2a).
+"""VetOne API client.
 
-What it does, and why (all found by testing, see api-notes.md):
+What it does, and why (the API docs say little of this; it was found by testing the API):
   * gets a token with POST /auth/token and sends it as a Bearer header;
   * gets a NEW token before the old one is 45 minutes old (tokens live 50-60 minutes) and
     once more on a 401;
@@ -8,7 +8,7 @@ What it does, and why (all found by testing, see api-notes.md):
     failure, because the limit is a time window and waiting always works (capped, so a
     broken limiter cannot hold a run forever);
   * 5xx and network errors: waits 2, 4, 8 ... seconds (at most 30) and tries again, at most
-    6 times (D-031), then raises ApiError;
+    6 times (about 90 seconds in all), then raises ApiError;
   * every other answer (200, 400, 404, 410 ...) is handed back to the caller, who knows what
     it means (a 410 is a dead cursor, which only the pager can handle).
 
@@ -30,7 +30,7 @@ log = logging.getLogger("nordvet.api")
 
 TIMEOUT_S = 60  # the brief warns of a cold start of about 20 s
 TOKEN_MAX_AGE_S = 45 * 60  # tokens were accepted at 50 minutes and rejected at 60
-MAX_RETRIES = 6  # retries after a 5xx or network error (D-031)
+MAX_RETRIES = 6  # retries after a 5xx or network error; every transient 500 seen recovered within two
 MAX_RATE_LIMIT_WAITS = 20  # 429 waits per call
 DEFAULT_RETRY_AFTER_S = 60
 MAX_BACKOFF_S = 30

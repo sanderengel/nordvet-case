@@ -1,4 +1,4 @@
-"""Tests for the no-show report that need no database (Phase 5, D-050 to D-053): sorting, formatting,
+"""Tests for the no-show report that need no database: sorting, formatting,
 the default day, the as-of rule and the HTML itself."""
 
 import json
@@ -60,7 +60,7 @@ def test_rates_are_percentages_with_one_decimal_or_na():
     assert format_rate(Decimal("0.000000")) == "0.0%"
     assert format_rate(Decimal("0.062500")) == "6.3%"  # half up, not to even
     assert format_rate(Decimal("1.000000")) == "100.0%"
-    assert format_rate(None) == "N/A"  # nothing to divide (D-039)
+    assert format_rate(None) == "N/A"  # nothing to divide
 
 
 def test_clinic_names_lose_the_shared_prefix():
@@ -112,7 +112,7 @@ def test_the_page_opens_on_yesterday_and_lists_the_days_newest_first():
 
 
 def test_a_day_without_appointments_is_skipped_and_the_page_says_so():
-    # As of Monday 9 Nov: yesterday is Sunday 8 Nov, with nothing to show at any clinic (D-052).
+    # As of Monday 9 Nov: yesterday is Sunday 8 Nov, with nothing to show at any clinic.
     monday = date(2026, 11, 9)
     stamp = dict(as_of_date=monday, as_of_local=datetime(2026, 11, 9, 6, 30))
     rows = [row("A", day=date(2026, 11, 8), completed=0, no_show=0, **stamp),
@@ -160,7 +160,7 @@ def test_the_page_carries_no_vet_or_patient_fields_and_no_money():
         assert word not in html_page
 
 
-def test_each_day_has_an_all_clinics_row_outside_the_sorted_rows():  # D-056
+def test_each_day_has_an_all_clinics_row_outside_the_sorted_rows():
     day = page([row("A"), row("B", completed=5, no_show=0, assumed=1)])["days"][0]
     assert day["total"] == ["All", "", 15, 1, 1, 17, "11.8%", True, "10.0%", 0.117647, 0.1]
     assert [r[0] for r in day["rows"]] == ["B", "A"]

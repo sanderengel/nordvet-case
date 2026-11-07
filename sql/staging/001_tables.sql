@@ -1,6 +1,6 @@
--- Staging layer (D-027): typed, one row per id, the latest version seen in raw.
--- Only the fields the model needs (D-023). patient_ref stays in raw (D-027).
--- No CHECK constraints on status or service (D-023).
+-- Staging layer: typed, one row per id, the latest version seen in raw.
+-- Only the fields the model needs; fields the API adds later stay in raw. patient_ref stays in raw.
+-- No CHECK constraints on status or service: an unseen value is loaded, not rejected.
 
 IF SCHEMA_ID(N'staging') IS NULL EXEC (N'CREATE SCHEMA staging');
 GO

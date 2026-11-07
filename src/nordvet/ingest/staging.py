@@ -1,4 +1,4 @@
-"""Building the typed staging tables from raw (D-027)."""
+"""Building the typed staging tables from raw: one row per id, the latest version."""
 
 from __future__ import annotations
 

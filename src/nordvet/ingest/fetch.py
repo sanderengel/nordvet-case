@@ -1,6 +1,6 @@
-"""Fetching a run's pages from the API (Phase 3.2, step 2b). Nothing is written here.
+"""Fetching a run's pages from the API. Nothing is written here.
 
-Per D-024, D-025 and D-029 a run is:
+A run is:
   * the clinics (one call, no paging); its server time is the run's start;
   * the appointments, one request sequence per month window, from 2026-08-01 to today plus
     60 days, every call with include_deleted=true and limit=500;
@@ -27,10 +27,10 @@ from nordvet.ingest.raw import Page
 
 log = logging.getLogger("nordvet.fetch")
 
-DEFAULT_START = date(2026, 8, 1)  # D-025: the first month with data
+DEFAULT_START = date(2026, 8, 1)  # the first month with data; everything earlier is empty
 LOOKAHEAD_DAYS = 60  # rows run about a month ahead; 60 leaves room
 PAGE_LIMIT = 500  # the API's maximum
-WATERMARK_MARGIN = timedelta(minutes=10)  # D-024
+WATERMARK_MARGIN = timedelta(minutes=10)  # covers whole-minute stamps and clock skew, with room to spare
 MAX_RESTARTS = 3  # restarts of one month after a 410
 
 
@@ -66,7 +66,7 @@ def month_windows(start: date, end: date) -> list[tuple[date, date]]:
 
 
 def updated_since_param(last_run_start: datetime) -> str:
-    """The updated_since value for an incremental run (D-024): last run's start minus the margin."""
+    """The updated_since value for an incremental run: last run's start minus the margin."""
     return (last_run_start - WATERMARK_MARGIN).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 

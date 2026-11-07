@@ -1,22 +1,25 @@
--- Fact table (D-036): one row per non-deleted appointment (soft-deleted rows are left out, D-015).
--- No vet_id (D-019) and no patient_ref (not in staging, D-027).
+-- Fact table: one row per non-deleted appointment (soft-deleted rows, which the source has
+-- withdrawn, are left out).
+-- No vet_id: vets are double-booked, so it may not be who did the work, and there are no
+-- vet-level metrics. No patient_ref: it is kept only in raw.
 --
--- outcome (D-021, refined by D-043); the source status itself is kept unchanged in `status`:
+-- outcome, derived; the source status itself is kept unchanged in `status`:
 --   completed, no_show, cancelled  as recorded by the clinic, whatever the date
 --   no_show_assumed                still booked, scheduled before the clinic's as-of date
 --   pending                        still booked, scheduled on or after the as-of date
---   other                          a status value the loader has not seen (D-023)
+--   other                          a status value the loader has not seen
 --
--- cancelled_after_start (D-022): a cancellation recorded at or after the scheduled start. The UTC
+-- cancelled_after_start: a cancellation recorded at or after the scheduled start (an ordinary
+-- cancellation entered late by staff, never counted as a no-show). The UTC
 -- stamps are DATETIME2; TODATETIMEOFFSET(..., '+00:00') makes the comparison with the local
--- scheduled_at explicit (checked live: the same result as the implicit comparison, Q2a).
+-- scheduled_at explicit (checked live: the same result as the implicit comparison).
 -- Minute differences between a DATETIMEOFFSET and a UTC stamp are taken in UTC by DATEDIFF.
 
 CREATE OR ALTER VIEW marts.fact_appointment AS
 SELECT a.id                                                      AS appointment_id,
        a.clinic_id,
        a.service,
-       CAST(a.scheduled_at AS DATE)                              AS scheduled_date,   -- local date (Q1)
+       CAST(a.scheduled_at AS DATE)                              AS scheduled_date,   -- local date
        a.scheduled_at,                                                                -- local time with offset
        DATEADD(MINUTE, a.duration_minutes, a.scheduled_at)       AS scheduled_end_at,
        a.duration_minutes,

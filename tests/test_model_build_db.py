@@ -1,4 +1,4 @@
-"""The marts against a real SQL Server (Phase 4, D-038): load a small known data set through the
+"""The marts against a real SQL Server: load a small known data set through the
 fake API, build the views and check the outcomes, the flags and the clinic-day rates by hand.
 
 Runs in the separate nordvet_test database (cleared by the tests themselves); skipped when the
@@ -108,11 +108,11 @@ def test_build_passes_its_checks_and_derives_the_outcomes(conn):
         "apt_000000000005": "no_show_assumed",
         "apt_000000000006": "cancelled",
         "apt_000000000007": "cancelled",
-        "apt_000000000008": "completed",  # the as-of day keeps a recorded status (D-043)
+        "apt_000000000008": "completed",  # the as-of day keeps a recorded status
         "apt_000000000009": "pending",
         "apt_000000000010": "pending",
         "apt_000000000012": "completed",
-    }  # apt_000000000011 is soft-deleted and absent (D-015)
+    }  # apt_000000000011 is soft-deleted and absent
 
     flags = dict(rows(conn, "SELECT appointment_id, CAST(cancelled_after_start AS INT) "
                             "FROM marts.fact_appointment WHERE status = 'cancelled'"))
@@ -140,23 +140,23 @@ def test_clinic_day_counts_and_rates(conn):
                cancelled_after_start, pending, attended_or_missed, no_show_rate,
                confirmed_no_show_rate, CAST(is_assumed AS INT), CAST(is_active AS INT)
         FROM marts.clinic_day WHERE clinic_id = 'CL-001' AND calendar_date = '2026-11-05'""")
-    # 1 completed, 1 no-show, 2 assumed: assumed rate 3/4, confirmed rate 1/2 (D-020, D-021)
+    # 1 completed, 1 no-show, 2 assumed: assumed rate 3/4, confirmed rate 1/2
     assert day == [("past", 6, 1, 1, 2, 2, 1, 0, 4, Decimal("0.750000"), Decimal("0.500000"), 1, 1)]
 
     as_of_day = rows(conn, """
         SELECT day_status, completed, pending, no_show_rate, confirmed_no_show_rate
         FROM marts.clinic_day WHERE clinic_id = 'CL-001' AND calendar_date = '2026-11-07'""")
-    assert as_of_day == [("as_of_day", 1, 1, None, None)]  # no rate for the as-of day (D-021)
+    assert as_of_day == [("as_of_day", 1, 1, None, None)]  # no rate for the as-of day
 
     empty = rows(conn, """
         SELECT appointments, no_show_rate FROM marts.clinic_day
         WHERE clinic_id = 'CL-001' AND calendar_date = '2026-11-06'""")
-    assert empty == [(0, None)]  # nothing to divide: NULL, not 0% (D-039)
+    assert empty == [(0, None)]  # nothing to divide: NULL, not 0%
 
     closed = rows(conn, """
         SELECT CAST(is_active AS INT), completed, confirmed_no_show_rate FROM marts.clinic_day
         WHERE clinic_id = 'CL-002' AND calendar_date = '2026-11-05'""")
-    assert closed == [(0, 1, Decimal("0.000000"))]  # kept in the mart, flagged (D-039)
+    assert closed == [(0, 1, Decimal("0.000000"))]  # kept in the mart, flagged
 
 
 def test_report_view_holds_clinics_with_appointments_past_days_and_the_30_day_rate(conn):
@@ -167,16 +167,16 @@ def test_report_view_holds_clinics_with_appointments_past_days_and_the_30_day_ra
         FROM marts.report_clinic_day
         WHERE clinic_id = 'CL-001' AND calendar_date IN ('2026-08-06', '2026-11-05', '2026-11-06')
         ORDER BY calendar_date""")
-    # the 30 days are the days before the day itself (D-053, Phase 5 revision)
+    # the 30 days are the days before the day itself
     assert got == [
         ("CL-001", date(2026, 8, 6), 1, Decimal("0.000000"), 0, 0, None),     # nothing before 6 Aug
         ("CL-001", date(2026, 11, 5), 4, Decimal("0.750000"), 0, 0, None),    # 6 Oct to 4 Nov: nothing
-        # an empty day has no rate of its own; its previous 30 days hold 5 Nov (D-039)
+        # an empty day has no rate of its own; its previous 30 days hold 5 Nov
         ("CL-001", date(2026, 11, 6), 0, None, 3, 4, Decimal("0.750000")),
     ]
     closed = rows(conn, "SELECT calendar_date FROM marts.report_clinic_day WHERE clinic_id = 'CL-002'")
-    assert closed == [(date(2026, 11, 5),)]  # a closed clinic only on the days it had appointments (D-055)
-    assert rows(conn, "SELECT MAX(calendar_date) FROM marts.report_clinic_day") == [(date(2026, 11, 6),)]  # D-021
+    assert closed == [(date(2026, 11, 5),)]  # a closed clinic only on the days it had appointments
+    assert rows(conn, "SELECT MAX(calendar_date) FROM marts.report_clinic_day") == [(date(2026, 11, 6),)]  # the as-of day has no rate
 
     # the window covers 30 earlier days of data, or fewer after the first day with data (6 Aug
     # here; the date dimension starts on 1 Aug), in both views
@@ -192,7 +192,7 @@ def test_report_view_holds_clinics_with_appointments_past_days_and_the_30_day_ra
         FROM marts.report_all_clinics_day
         WHERE calendar_date IN ('2026-08-06', '2026-11-05', '2026-11-06')
         ORDER BY calendar_date""")
-    # 5 Nov: both clinics, 3 missed of 5 (D-056); 6 Nov's previous 30 days hold 5 Nov
+    # 5 Nov: both clinics, 3 missed of 5; 6 Nov's previous 30 days hold 5 Nov
     assert total == [
         (date(2026, 8, 6), 1, Decimal("0.000000"), None),
         (date(2026, 11, 5), 5, Decimal("0.600000"), None),
@@ -205,7 +205,7 @@ def test_the_report_is_written_from_the_view(conn, tmp_path):
 
     loaded(conn)
     data = report(conn, tmp_path / "no-shows.html")
-    assert data["days"][0]["date"] == "2026-11-05"  # 6 Nov had no appointments (D-052)
+    assert data["days"][0]["date"] == "2026-11-05"  # 6 Nov had no appointments
     assert data["defaultNote"].startswith("Friday 6 November 2026 had no appointments")
     assert data["days"][0]["rows"] == [
         ["Århus Test", "DK", 1, 1, 2, 4, "75.0%", True, "N/A", 0.75, None],

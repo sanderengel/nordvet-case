@@ -1,11 +1,13 @@
 -- One row per clinic per calendar date (every clinic x every date of marts.dim_date), with the
--- counts per outcome and the two rates. This is what the report reads.
+-- counts per outcome and the two rates. The report views and the Parquet export build on it.
 --
--- no_show_rate (D-021): (no_show + no_show_assumed) / (completed + no_show + no_show_assumed)
--- confirmed_no_show_rate (D-020): no_show / (completed + no_show)
--- Both are NULL when there is nothing to divide (D-039) and for the as-of day and later, which
--- are not shown as a rate (D-021). is_assumed = 1 while the day still has assumed no-shows.
--- Closed clinics are kept (is_active = 0); the report filters them (D-016, D-039).
+-- no_show_rate: (no_show + no_show_assumed) / (completed + no_show + no_show_assumed). Past
+--   appointments still booked count as missed, because clinics record no-shows only from the
+--   next morning; without them yesterday's rate would read 0% every morning.
+-- confirmed_no_show_rate: no_show / (completed + no_show)
+-- Both are NULL when there is nothing to divide (not 0%) and for the as-of day and later, which
+-- are not shown as a rate. is_assumed = 1 while the day still has assumed no-shows.
+-- Closed clinics are kept (is_active = 0).
 
 CREATE OR ALTER VIEW marts.clinic_day AS
 WITH counts AS (

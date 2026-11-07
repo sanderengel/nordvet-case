@@ -1,5 +1,5 @@
 -- IANA time-zone names (as the API gives them in staging.clinic.timezone) mapped to the Windows
--- names that SQL Server's AT TIME ZONE accepts (D-042). AT TIME ZONE rejects IANA names
+-- names that SQL Server's AT TIME ZONE accepts. AT TIME ZONE rejects IANA names
 -- (error 9820, checked live 7 Nov). A clinic in a new zone needs one more line here; until then
 -- the build check 'clinic_zone_unmapped' fails.
 

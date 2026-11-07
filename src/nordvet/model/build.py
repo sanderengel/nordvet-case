@@ -1,4 +1,4 @@
-"""Building the marts (Phase 4, D-037).
+"""Building the marts: views on top of staging, created by one command.
 
     python -m nordvet.model.build [-v]
 
@@ -10,7 +10,7 @@
 The views read staging and raw.run, so load first (python -m nordvet.ingest.load). The build
 does not create the database: a missing database or missing staging tables is a failed build.
 
-Exit codes (D-033): 0 built and every check passed, 1 configuration problem, 2 the build failed
+Exit codes: 0 built and every check passed, 1 configuration problem, 2 the build failed
 or a check with severity 'fail' found problems.
 """
 
