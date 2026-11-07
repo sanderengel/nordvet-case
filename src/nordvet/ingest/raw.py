@@ -34,8 +34,13 @@ def create_tables(conn) -> None:
     conn.commit()
 
 
-def write_run(conn, source: str, pages: list[Page]) -> int:
-    """Insert one run record and all its pages in one transaction. Returns the run id."""
+def write_run(conn, source: str, pages: list[Page], started_at: datetime | None = None) -> int:
+    """Insert one run record and all its pages in one transaction. Returns the run id.
+
+    started_at is the server time of the run's first request (D-024). It defaults to the first
+    page's server date; the loader passes it explicitly, because a restarted page sequence can
+    drop that first page while the run's start must not move.
+    """
     if not pages:
         raise ValueError("a run needs at least one page")
     cur = conn.cursor()
@@ -44,7 +49,7 @@ def write_run(conn, source: str, pages: list[Page]) -> int:
             "INSERT INTO raw.run (started_at, finished_at, pages, appointment_rows, source) "
             "OUTPUT INSERTED.run_id VALUES (?, ?, ?, ?, ?)",
             (
-                pages[0].server_date,
+                started_at or pages[0].server_date,
                 max(p.fetched_at for p in pages),
                 len(pages),
                 sum(p.rows for p in pages),

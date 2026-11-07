@@ -2,7 +2,13 @@
 
 from __future__ import annotations
 
+import logging
+import time
+from typing import Callable
+
 from nordvet.config import Settings
+
+log = logging.getLogger("nordvet.db")
 
 
 def connection_string(settings: Settings, database: str | None = None) -> str:
@@ -38,3 +44,27 @@ def ensure_database(settings: Settings) -> bool:
         return not exists
     finally:
         conn.close()
+
+
+def ensure_database_with_retry(
+    settings: Settings,
+    tries: int = 12,
+    wait_s: float = 5,
+    sleep: Callable[[float], None] = time.sleep,
+    ensure: Callable[[Settings], bool] = ensure_database,
+) -> bool:
+    """ensure_database, trying again for about a minute.
+
+    A freshly started SQL Server container under Rosetta needs 10-30 seconds before it takes
+    connections; before that the driver fails with "error during handshakes before login".
+    Only the error's type name is logged, never its text.
+    """
+    for attempt in range(1, tries + 1):
+        try:
+            return ensure(settings)
+        except Exception as exc:
+            if attempt == tries:
+                raise
+            log.warning("database not ready (%s), waiting %ss, try %d/%d", type(exc).__name__, wait_s, attempt, tries)
+            sleep(wait_s)
+    raise AssertionError("unreachable")
