@@ -7,6 +7,7 @@ between:
     python -m nordvet.explore.explore_full pull       # every appointment, month by month
     python -m nordvet.explore.explore_full filters    # how from/to, updated_since, clinic_id behave
     python -m nordvet.explore.explore_full edges      # updated_since boundary, unknown clinic, old cursor
+    python -m nordvet.explore.explore_full poll       # hours-long: token and cursor lifetime, slowness after idle
 
 Everything lands in data/raw/<UTC timestamp>_<subcommand>/ (gitignored), saved raw
 as received, with the same secret handling as nordvet.explore.explore: request
@@ -470,6 +471,82 @@ def edges(args: argparse.Namespace) -> int:
     return 0
 
 
+def call_retrying(p: Probe, step: str, path: str, params: dict | None, token: str | None):
+    """One call, retried on 429, 5xx and network errors only, so a 401 or 410 comes back as it is."""
+    resp, parsed = p.call(step, "GET", path, params=params, token=token)
+    for attempt in range(1, 4):
+        status = None if resp is None else resp.status_code
+        if status == 429:
+            try:
+                wait = int(resp.headers.get("Retry-After", "60")) + 1
+            except ValueError:
+                wait = 61
+        elif status is None or status >= 500:
+            wait = 5 * attempt
+        else:
+            break
+        time.sleep(wait)
+        resp, parsed = p.call(f"{step}_retry{attempt}", "GET", path, params=params, token=token)
+    return resp, parsed
+
+
+def poll(args: argparse.Namespace) -> int:
+    """Hours-long, a handful of calls at each checkpoint: how long the first token stays valid,
+    how long the first cursor stays valid (tested with a fresh token each time), and how long
+    the first call takes after the API has been idle since the previous checkpoint.
+
+    Keep the machine awake while it runs (macOS: prefix the command with `caffeinate -i`).
+    Results are written to poll_summary.json after every checkpoint, so stopping early keeps them.
+    """
+    p = setup(args, "poll")
+    if p is None:
+        return 1
+    first_token = p.token
+    day = (date.today() - timedelta(days=2)).isoformat()
+    page_params = {"from": day, "to": day, "limit": 10}
+    resp, parsed = call_retrying(p, "first_page", "/v1/appointments", page_params, first_token)
+    cursor = parsed.get("next_cursor") if isinstance(parsed, dict) else None
+    if not cursor:
+        print("The first page had no next_cursor; pick a busier day.")
+        return 1
+    marks = sorted(int(m) for m in args.minutes.split(","))
+    print(f"Token and cursor issued now. Checkpoints (minutes): {marks}. This runs for about {marks[-1] / 60:.1f} h.\n")
+    started = time.monotonic()
+    results: list[dict] = []
+    token_dead_at = cursor_dead_at = None
+    for minute in marks:
+        wait = started + minute * 60 - time.monotonic()
+        if wait > 0:
+            time.sleep(wait)
+        row: dict = {"minute": minute, "at_utc": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+        t0 = time.monotonic()
+        r, _ = call_retrying(p, f"m{minute:04d}_health", "/health", None, None)
+        row["first_call_after_idle_s"] = round(time.monotonic() - t0, 2)
+        row["health_status"] = None if r is None else r.status_code
+        if token_dead_at is None:
+            r, _ = call_retrying(p, f"m{minute:04d}_first_token", "/v1/appointments", page_params, first_token)
+            row["first_token_status"] = None if r is None else r.status_code
+            if r is not None and r.status_code == 401:
+                token_dead_at = minute
+        if cursor_dead_at is None:
+            if p.authenticate():
+                r, _ = call_retrying(p, f"m{minute:04d}_first_cursor", "/v1/appointments", {"limit": 10, "cursor": cursor}, p.token)
+                row["first_cursor_status"] = None if r is None else r.status_code
+                if r is not None and r.status_code in (400, 410):
+                    cursor_dead_at = minute
+        results.append(row)
+        print(f"   minute {minute:>4}: " + ", ".join(f"{k}={v}" for k, v in row.items() if k != "minute"))
+        summary = {
+            "first_token_rejected_at_minute": token_dead_at,
+            "first_cursor_rejected_at_minute": cursor_dead_at,
+            "checkpoints": results,
+        }
+        (p.out_dir / "poll_summary.json").write_text(json.dumps(summary, indent=2))
+    print(f"\nDone. First token rejected at minute: {token_dead_at} (None = still valid at the end). "
+          f"First cursor rejected at minute: {cursor_dead_at}. Summary in {p.out_dir / 'poll_summary.json'}")
+    return 0
+
+
 # ----------------------------------------------------------------- entry point
 
 
@@ -500,8 +577,12 @@ def main(argv: list[str] | None = None) -> int:
     se.add_argument("--limit", type=int, default=DEFAULT_LIMIT)
     se.add_argument("--max-pages", type=int, default=50, help="safety cap per query")
 
+    sq = sub.add_parser("poll", parents=[common], help="hours-long: token and cursor lifetime, slowness after idle")
+    sq.add_argument("--minutes", default="2,5,10,15,20,30,40,50,60,90,120,180,240,300,360,420,480",
+                    help="checkpoints in minutes after the token and cursor were issued")
+
     args = parser.parse_args(argv)
-    return {"discover": discover, "pull": pull, "filters": filters, "edges": edges}[args.command](args)
+    return {"discover": discover, "pull": pull, "filters": filters, "edges": edges, "poll": poll}[args.command](args)
 
 
 if __name__ == "__main__":
