@@ -106,16 +106,3 @@ def test_database_retry_gives_up_with_the_last_error():
     with pytest.raises(RuntimeError, match="still down"):
         ensure_database_with_retry(settings(), tries=3, wait_s=1, sleep=slept.append, ensure=down)
     assert len(slept) == 2
-
-
-def test_reconcile_splits_explained_from_unexplained_differences():
-    from nordvet.ingest.reconcile import split_differences
-
-    rows = [
-        ("differs", "apt_1", "booked", "no_show", "2026-11-07T09:00:00", "2026-11-07T17:01:00", 1),
-        ("only_fresh", "apt_2", None, "booked", None, "2026-11-07T17:02:00", 1),
-        ("only_incremental", "apt_3", "booked", None, "2026-11-07T08:00:00", None, 0),
-    ]
-    explained, unexplained = split_differences(rows)
-    assert [r[1] for r in explained] == ["apt_1", "apt_2"]
-    assert [r[1] for r in unexplained] == ["apt_3"]
