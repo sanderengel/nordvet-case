@@ -55,6 +55,18 @@ FROM marts.clinic_day
 WHERE no_show_rate < 0 OR no_show_rate > 1 OR confirmed_no_show_rate < 0 OR confirmed_no_show_rate > 1
 
 UNION ALL
+SELECT 'report_rate_30d_out_of_range', 'fail', COUNT(*),
+       N'30-day rates in marts.report_clinic_day below 0 or above 1 (D-053)'
+FROM marts.report_clinic_day
+WHERE no_show_rate_30d < 0 OR no_show_rate_30d > 1
+
+UNION ALL
+SELECT 'report_total_differs_from_rows', 'fail',
+       ABS(COALESCE((SELECT SUM(attended_or_missed) FROM marts.report_all_clinics_day), 0)
+           - COALESCE((SELECT SUM(attended_or_missed) FROM marts.report_clinic_day), 0)),
+       N'attended or missed in the report''s All row against its clinic rows (D-055, D-056)'
+
+UNION ALL
 SELECT 'soft_deleted_excluded', 'info', 0,
        CONCAT(COUNT(*), N' soft-deleted appointments left out of the fact (D-015)')
 FROM staging.appointment
