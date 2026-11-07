@@ -1,28 +1,31 @@
-"""Entry point: python -m nordvet <command>."""
+"""Entry point: python -m nordvet <command>.
+
+    python -m nordvet smoke               check the configuration, the API and the database
+    python -m nordvet run [--full] [-v] [--open]
+                                          the whole pipeline: load, build, export, report
+"""
 
 from __future__ import annotations
 
 import argparse
 import sys
 
+from nordvet.pipeline import run_pipeline
 from nordvet.smoke import run_smoke
-
-EXIT_NOT_IMPLEMENTED = 3
-
-
-def run_pipeline() -> int:
-    # Stages are added in later phases: ingest (3), model and metrics (4), report (5).
-    print("The pipeline has no stages yet. Run `python -m nordvet smoke` to check the setup.")
-    return EXIT_NOT_IMPLEMENTED
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="nordvet", description="Nordvet no-show pipeline")
     sub = parser.add_subparsers(dest="command", required=True)
-    sub.add_parser("smoke", help="check config, API reachability and the database")
-    sub.add_parser("run", help="run the full pipeline (not implemented yet)")
+    sub.add_parser("smoke", help="check the configuration, the API and the database")
+    run = sub.add_parser("run", help="the whole pipeline: load, build, export, report")
+    run.add_argument("--full", action="store_true", help="load everything, ignoring earlier runs")
+    run.add_argument("-v", "--verbose", action="store_true", help="debug logging, with tracebacks")
+    run.add_argument("--open", action="store_true", help="open the report in the browser when it was written")
     args = parser.parse_args(argv)
-    return run_smoke() if args.command == "smoke" else run_pipeline()
+    if args.command == "smoke":
+        return run_smoke()
+    return run_pipeline(full=args.full, verbose=args.verbose, open_report=args.open)
 
 
 if __name__ == "__main__":
