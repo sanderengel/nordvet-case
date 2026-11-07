@@ -23,6 +23,9 @@ exports/
 *.ldf
 *.ndf
 
+# The generated report holds Nordvet's figures; it is produced by the pipeline, not committed
+reports/*.html
+
 # Logs
 logs/
 *.log
