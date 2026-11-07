@@ -1,5 +1,7 @@
 """Unit tests for configuration and secret handling. No network, no database."""
 
+import os
+
 import pytest
 
 from nordvet.config import ConfigError, load_settings, redact
@@ -12,8 +14,14 @@ ENV_VARS = (
 
 @pytest.fixture(autouse=True)
 def clean_env(monkeypatch):
+    saved = dict(os.environ)
     for name in ENV_VARS:
         monkeypatch.delenv(name, raising=False)
+    yield
+    # load_settings() fills os.environ directly (load_dotenv), which monkeypatch does not undo.
+    # Put it back, so values from a test's temporary env file cannot leak into later tests.
+    os.environ.clear()
+    os.environ.update(saved)
 
 
 def write_env(tmp_path, text):
@@ -54,9 +62,9 @@ def test_redact_replaces_all_secrets(tmp_path):
     assert redact(message, settings) == "login failed for *** using *** and ***"
 
 
-def test_rejects_bad_port_and_database_name(tmp_path, monkeypatch):
+def test_rejects_bad_port_and_database_name(tmp_path):
     with pytest.raises(ConfigError):
         load_settings(write_env(tmp_path, "MSSQL_PORT=abc\n"))
-    monkeypatch.delenv("MSSQL_PORT", raising=False)
+    os.environ.pop("MSSQL_PORT", None)  # not monkeypatch: it would "restore" the bad value afterwards
     with pytest.raises(ConfigError):
         load_settings(write_env(tmp_path, "MSSQL_DATABASE=bad;name\n"))
