@@ -5,3 +5,4 @@ mssql-python==1.17.0
 requests==2.34.2
 python-dotenv==1.2.4
 pytest==9.2.0
+pyarrow==25.0.1  # Parquet export of the marts (D-041); added 7 Nov 2026, Phase 4
