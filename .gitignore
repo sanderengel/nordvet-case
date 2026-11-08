@@ -1,6 +1,6 @@
 # ---------------------------------------------------------------
-# Secrets: the real .env lives outside the repo (see decision D-012),
-# but these rules are a second line of defence.
+# Secrets: .env holds the credentials and must never be committed.
+# .env.template is the only env file that is tracked.
 # ---------------------------------------------------------------
 .env
 .env.*
