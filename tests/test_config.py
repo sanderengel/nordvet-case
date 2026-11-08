@@ -4,7 +4,8 @@ import os
 
 import pytest
 
-from nordvet.config import ConfigError, load_settings, redact
+from nordvet import config
+from nordvet.config import ConfigError, env_file_path, load_settings, redact
 
 ENV_VARS = (
     "VETONE_API_BASE_URL", "VETONE_CLIENT_ID", "VETONE_CLIENT_SECRET",
@@ -68,3 +69,39 @@ def test_rejects_bad_port_and_database_name(tmp_path):
     os.environ.pop("MSSQL_PORT", None)  # not monkeypatch: it would "restore" the bad value afterwards
     with pytest.raises(ConfigError):
         load_settings(write_env(tmp_path, "MSSQL_DATABASE=bad;name\n"))
+
+
+@pytest.fixture
+def env_places(tmp_path, monkeypatch):
+    """Point the two default env file locations at a temporary folder, with neither file there."""
+    home, repo = tmp_path / "home.env", tmp_path / "repo.env"
+    monkeypatch.setattr(config, "HOME_ENV_FILE", home)
+    monkeypatch.setattr(config, "REPO_ENV_FILE", repo)
+    monkeypatch.delenv("NORDVET_ENV_FILE", raising=False)
+    return home, repo
+
+
+def test_the_repo_env_wins_over_the_file_outside_the_repo(env_places):
+    home, repo = env_places
+    home.write_text("MSSQL_DATABASE=from_home\n")
+    assert env_file_path() == home
+    repo.write_text("MSSQL_DATABASE=from_repo\n")
+    assert env_file_path() == repo
+    assert load_settings().mssql_database == "from_repo"
+
+
+def test_nordvet_env_file_wins_and_must_exist(env_places, tmp_path, monkeypatch):
+    home, repo = env_places
+    home.write_text("MSSQL_DATABASE=from_home\n")
+    repo.write_text("MSSQL_DATABASE=from_repo\n")
+    monkeypatch.setenv("NORDVET_ENV_FILE", str(tmp_path / "missing.env"))
+    assert env_file_path() == tmp_path / "missing.env"
+    with pytest.raises(ConfigError, match="missing.env"):
+        load_settings()
+
+
+def test_no_env_file_anywhere_names_both_places(env_places):
+    home, repo = env_places
+    with pytest.raises(ConfigError) as err:
+        load_settings()
+    assert str(home) in str(err.value) and str(repo) in str(err.value)
