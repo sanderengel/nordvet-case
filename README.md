@@ -96,10 +96,10 @@ The layers map onto medallion terms: bronze = `raw`, silver = `staging`, gold = 
 
 ## Where it would run for Nordvet
 - **Database:** Azure SQL Database running the same T-SQL, which shouldn't need any changes.
-- **Job:** the same Python, `python -m nordvet run`, as an Azure Container Apps job every morning at 07:00 (an Azure Functions timer would also work). A run takes a couple of minutes, so the page is ready before the day starts; yesterday's rates are marked *assumed* at that hour (assumption 3).
+- **Job:** the load and build steps (`python -m nordvet.ingest.load`, then `python -m nordvet.model.build`), as an Azure Container Apps job every morning at 07:00 (an Azure Functions timer would also work). A run takes a couple of minutes, so the numbers are ready before the day starts; yesterday's rates are marked *assumed* at that hour (assumption 3).
 - **Secrets:** Azure Key Vault, read through a managed identity. No `.env` file.
 - **Power BI:** Emil's team connects Power BI directly to the marts views in Azure SQL. Locally, the Parquet export stands in for that connection; in Azure that step is dropped.
-- **The dashboard:** the generated page is saved where Mette already works, such as a SharePoint or Teams site.
+- **The dashboard:** for Mette, a Power BI report on the same marts views, published in Teams, so her view lives in the tool Emil's team already maintains. Locally, the generated HTML page stands in for that report; in Azure that step is dropped too.
 - **Failures:** the job's exit code (1 for configuration, 2 for a failed run) triggers an Azure Monitor alert to Emil's team.
 
 **I chose this setup because:**
@@ -121,11 +121,11 @@ This `README` file has also been partly written by Claude based on my own decisi
 
 ## What I would do with more time
 
-**Simplify:** The solution is probably larger than needed for a first slice. I worked with the agent to make each part correct, but I didn't step back often enough to consider whether everything was actually necessary. With more time, I would go through it with Emil's team in mind and remove what they wouldn't miss. E.g., every build runs 13 SQL checks, maybe 2-3 of the most important ones would be enough. 
+**Simplify:** The solution is probably larger than needed for a first slice. I worked with the agent to make each part correct, but I didn't step back often enough to consider whether everything was actually necessary. With more time, I would go through it with Emil's team in mind and remove what they wouldn't miss. E.g., every build runs 13 SQL checks where maybe 2-3 of the most important ones would be enough, and the Parquet export only really matters until Power BI can reach the Azure database. 
 
 **Build closer to Nordvet's real setup:** I would have looked into actually deploying to Azure SQL with a Container Apps job, so I could test the "where it would run" section instead of just describing it. I would also have liked to compare it with Microsoft Fabric. I deliberately chose Azure SQL over Fabric because it's cheap, uses tools Emil's team already knows, and doesn't have a lot to operate, but I haven't tested that choice against Fabric.
 
-**Improve the Power BI experience:** I currently only deliver Parquet files to Emil's IT team. With more time, I would have also pre-built a semantic model on the marts views to make it easier for the team. This would also include defining the no-show rate once so everyone at Nordvet uses the same definition. Power BI Desktop is Windows-only, so I would need to set up and use a VM on my Mac. I decided against this in the interest of time.
+**Improve the Power BI experience:** I currently only deliver Parquet files for Emil's IT team and an HTML page for Mette. With more time, I would have also pre-built a semantic model on the marts views to make it easier for the team. This would also include defining the no-show rate once so everyone at Nordvet uses the same definition. I would also build Mette's daily view as a Power BI report on top of it. I could build the report in the browser version of Power BI on my Mac, but it wouldn't be able to reach my local database, so this would come after deploying to Azure SQL.
 
 **Try dbt:** I have already built views, a Python build command, and checks, which is similar to what dbt provides. I purposely left dbt out of the case, but with more time I would have tried it on the same setup and compared to test whether this decision was correct. I haven't used dbt before, so this would also be a chance to learn it. I still wouldn't necessarily hand dbt to a two-person SQL team on day one.
 
